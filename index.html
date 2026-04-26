@@ -403,6 +403,98 @@
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); }
+
+  /* API Key Modal */
+  .key-overlay {
+    position: fixed; inset: 0;
+    background: rgba(245,242,238,0.96);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .key-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-top: 3px solid var(--accent);
+    padding: 36px 40px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+  }
+  .key-modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .key-modal p {
+    font-size: 13px;
+    color: var(--muted2);
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+  .key-modal p a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(138,104,48,0.3); }
+  .key-modal p a:hover { border-bottom-color: var(--accent); }
+  .key-input-row { display: flex; gap: 8px; }
+  .key-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 10px 12px;
+    letter-spacing: 0.5px;
+  }
+  .key-input:focus { outline: none; border-color: var(--accent); }
+  .key-submit {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 18px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .key-submit:hover { background: #7a5a28; }
+  .key-note {
+    margin-top: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .key-error {
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--red);
+    display: none;
+  }
+  /* Key indicator in header */
+  .key-indicator {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+  .key-indicator .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border2);
+  }
+  .key-indicator.set .dot { background: var(--green); }
+  .key-indicator.set { color: var(--green); }
 </style>
 </head>
 <body>
@@ -416,7 +508,26 @@
     <span class="source-pill web">■ WEB SEARCH</span>
     <span class="source-pill yt">■ YOUTUBE</span>
   </div>
+  <div class="key-indicator" id="keyIndicator" onclick="showKeyModal()" title="Click to change API key">
+    <span class="dot"></span>
+    <span id="keyStatus">NO API KEY</span>
+  </div>
 </header>
+
+<!-- API Key Modal -->
+<div class="key-overlay" id="keyOverlay">
+  <div class="key-modal">
+    <h2>Enter your Anthropic API key</h2>
+    <p>This tool calls the Anthropic API directly from your browser. Your key is stored only in this browser session and never sent anywhere except <code style="font-size:11px;background:var(--surface2);padding:1px 5px">api.anthropic.com</code>.<br><br>
+    Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> — free trial available.</p>
+    <div class="key-input-row">
+      <input class="key-input" id="keyInput" type="password" placeholder="sk-ant-api03-..." autocomplete="off" />
+      <button class="key-submit" onclick="submitKey()">Save</button>
+    </div>
+    <div class="key-error" id="keyError">Key must start with sk-ant-</div>
+    <div class="key-note">Your key stays in sessionStorage and is cleared when you close the tab.</div>
+  </div>
+</div>
 
 <div class="main">
   <aside class="sidebar">
@@ -595,6 +706,57 @@ let selectedStudios = ['Disney','Warner','Comcast','Paramount'];
 let selectedTheme = 'cost_savings';
 let sources = { edgar: true, web: true, youtube: true };
 let logEl = null;
+let apiKey = sessionStorage.getItem('anthropic_api_key') || '';
+
+// ─── API Key Modal ─────────────────────────────────────────────────────────────
+
+function showKeyModal() {
+  document.getElementById('keyOverlay').style.display = 'flex';
+  document.getElementById('keyInput').value = apiKey;
+  document.getElementById('keyInput').focus();
+}
+
+function submitKey() {
+  const val = document.getElementById('keyInput').value.trim();
+  const errEl = document.getElementById('keyError');
+  if (!val.startsWith('sk-ant-')) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  apiKey = val;
+  sessionStorage.setItem('anthropic_api_key', val);
+  document.getElementById('keyOverlay').style.display = 'none';
+  updateKeyIndicator();
+}
+
+function updateKeyIndicator() {
+  const el = document.getElementById('keyIndicator');
+  const status = document.getElementById('keyStatus');
+  if (apiKey) {
+    el.classList.add('set');
+    status.textContent = 'KEY SET · ' + apiKey.slice(-6);
+  } else {
+    el.classList.remove('set');
+    status.textContent = 'NO API KEY';
+  }
+}
+
+// Allow Enter key in input
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('keyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitKey();
+  });
+  // Always show modal on load — dismiss only by submitting a valid key
+  if (apiKey) {
+    // Pre-fill if already in session, but still show so user can confirm
+    document.getElementById('keyInput').value = apiKey;
+    document.getElementById('keyOverlay').style.display = 'flex';
+    updateKeyIndicator();
+  } else {
+    document.getElementById('keyOverlay').style.display = 'flex';
+  }
+});
 
 document.getElementById('studioGrid').addEventListener('click', e => {
   if (!e.target.closest('.studio-btn')) return;
@@ -732,7 +894,7 @@ Focus on direct executive quotes about ${THEME_LABELS[selectedTheme].toLowerCase
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -797,7 +959,7 @@ Focus on: investor days, earnings calls, Goldman Sachs Communacopia, MoffettNath
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -883,7 +1045,7 @@ FORMAT:
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
@@ -902,7 +1064,7 @@ async function runSynthesis(studios, fromYear, toYear, analyses) {
   const body = studios.map((s,i) => `=== ${STUDIO_NAMES[s]} ===\n${analyses[i]}`).join('\n\n');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
@@ -1016,6 +1178,10 @@ function switchTab(blockId, tabName, btn) {
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 async function runAnalysis() {
+  if (!apiKey) {
+    showKeyModal();
+    return;
+  }
   const fromYear = parseInt(document.getElementById('yearFrom').value);
   const toYear   = parseInt(document.getElementById('yearTo').value);
   const btn = document.getElementById('runBtn');
